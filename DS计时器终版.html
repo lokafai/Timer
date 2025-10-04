@@ -1,0 +1,544 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LED手机计时器</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
+      touch-action: manipulation;
+    }
+    
+    body, html {
+      width: 100%;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      align-items: center;
+      background-color: black;
+      color: #ff3333;
+      font-family: 'Courier New', Courier, monospace;
+      font-weight: bold;
+      overflow: hidden;
+    }
+    
+    .timer {
+      width: 95%; /* 减少宽度留出边距 */
+      height: 45%;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      border: 4px solid #ff3333;
+      border-radius: 15px;
+      background-color: black;
+      position: relative;
+      overflow: hidden;
+      margin: 0 auto; /* 居中 */
+    }
+    
+    .timer-text {
+      width: 100%;
+      height: 100%;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      text-align: center;
+      text-shadow: 0 0 2px currentColor; /* 减少阴影模糊度 */
+      letter-spacing: 0.1vw; /* 进一步减少字母间距 */
+      padding: 0 3%;
+      overflow: hidden;
+      line-height: 1;
+      white-space: nowrap;
+      -webkit-font-smoothing: antialiased; /* 改善字体渲染 */
+      font-smooth: always;
+    }
+    
+    .controls {
+      width: 95%;
+      height: 10%;
+      display: flex;
+      justify-content: space-around;
+      align-items: center;
+      background-color: black;
+      color: #ff3333;
+      font-size: 4vmin;
+      margin: 0 auto; /* 居中 */
+    }
+    
+    .control-button {
+      padding: 2vmin;
+      border: 2px solid #ff3333;
+      border-radius: 10px;
+      background-color: black;
+      color: #ff3333;
+      cursor: pointer;
+      user-select: none;
+    }
+    
+    .control-button:active {
+      background-color: #ff3333;
+      color: black;
+    }
+    
+    .time-picker {
+      display: none;
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background-color: #222;
+      border: 2px solid #ff3333;
+      border-radius: 15px;
+      padding: 5vmin;
+      z-index: 100;
+      width: 90%;
+      max-width: 400px;
+    }
+    
+    .time-picker.active {
+      display: block;
+    }
+    
+    .time-selectors {
+      display: flex;
+      justify-content: space-around;
+      align-items: center;
+      margin-bottom: 4vmin;
+    }
+    
+    .time-selector {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      width: 30%;
+    }
+    
+    .time-label {
+      font-size: 4vmin;
+      margin-bottom: 2vmin;
+      color: #fff;
+    }
+    
+    .time-options {
+      height: 30vmin;
+      overflow-y: scroll;
+      width: 100%;
+      border: 1px solid #ff3333;
+      border-radius: 5px;
+      background-color: #000;
+    }
+    
+    .time-option {
+      padding: 2vmin;
+      text-align: center;
+      font-size: 4vmin;
+      cursor: pointer;
+      color: #fff;
+    }
+    
+    .time-option.selected {
+      background-color: #ff3333;
+      color: black;
+    }
+    
+    .time-picker-buttons {
+      display: flex;
+      justify-content: space-around;
+    }
+    
+    .time-picker-button {
+      padding: 2vmin 4vmin;
+      border: 2px solid #ff3333;
+      border-radius: 10px;
+      background-color: black;
+      color: #ff3333;
+      cursor: pointer;
+      font-size: 4vmin;
+    }
+    
+    .time-picker-button:active {
+      background-color: #ff3333;
+      color: black;
+    }
+    
+    @keyframes blink {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.3; }
+    }
+    
+    .blinking {
+      animation: blink 1s infinite;
+    }
+    
+    /* 针对小屏幕的额外优化 */
+    @media (max-width: 480px) and (max-height: 700px) {
+      .timer-text {
+        letter-spacing: 0.05vw;
+      }
+    }
+    
+    /* 针对横屏的优化 */
+    @media (orientation: landscape) and (max-height: 500px) {
+      .controls {
+        height: 15%;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="timer" id="timer1" style="transform: rotate(180deg);">
+    <div class="timer-text" id="timer1Text">00:00.00</div>
+  </div>
+  
+  <div class="controls">
+    <div class="control-button" id="resetButton">重置</div>
+    <div class="control-button" id="modeButton">倒计时</div>
+    <div class="control-button" id="setTimeButton">设置时间</div>
+  </div>
+  
+  <div class="timer" id="timer2">
+    <div class="timer-text" id="timer2Text">00:00.00</div>
+  </div>
+
+  <div class="time-picker" id="timePicker">
+    <div class="time-selectors">
+      <div class="time-selector">
+        <div class="time-label">分</div>
+        <div class="time-options" id="minuteOptions"></div>
+      </div>
+      <div class="time-selector">
+        <div class="time-label">秒</div>
+        <div class="time-options" id="secondOptions"></div>
+      </div>
+    </div>
+    <div class="time-picker-buttons">
+      <div class="time-picker-button" id="cancelButton">取消</div>
+      <div class="time-picker-button" id="confirmButton">确定</div>
+    </div>
+  </div>
+
+  <script>
+    // 状态变量
+    let isRunning = false;
+    let isCountdownMode = false;
+    let startTime;
+    let elapsedTime = 0;
+    let countdownTime = 0;
+    
+    // DOM元素
+    const timer1Element = document.getElementById('timer1Text');
+    const timer2Element = document.getElementById('timer2Text');
+    const resetButton = document.getElementById('resetButton');
+    const modeButton = document.getElementById('modeButton');
+    const setTimeButton = document.getElementById('setTimeButton');
+    const timePicker = document.getElementById('timePicker');
+    const minuteOptions = document.getElementById('minuteOptions');
+    const secondOptions = document.getElementById('secondOptions');
+    const cancelButton = document.getElementById('cancelButton');
+    const confirmButton = document.getElementById('confirmButton');
+    
+    // 初始化时间选择器
+    function initTimePicker() {
+      // 生成分钟选项 (0-59)
+      for (let i = 0; i < 60; i++) {
+        const option = document.createElement('div');
+        option.className = 'time-option';
+        option.textContent = i.toString().padStart(2, '0');
+        option.dataset.value = i;
+        minuteOptions.appendChild(option);
+      }
+      
+      // 生成秒钟选项 (0-59)
+      for (let i = 0; i < 60; i++) {
+        const option = document.createElement('div');
+        option.className = 'time-option';
+        option.textContent = i.toString().padStart(2, '0');
+        option.dataset.value = i;
+        secondOptions.appendChild(option);
+      }
+      
+      // 默认选择00:00
+      selectTimeOption(minuteOptions, 0);
+      selectTimeOption(secondOptions, 0);
+    }
+    
+    // 选择时间选项
+    function selectTimeOption(container, value) {
+      const options = container.querySelectorAll('.time-option');
+      options.forEach(option => {
+        option.classList.remove('selected');
+        if (parseInt(option.dataset.value) === value) {
+          option.classList.add('selected');
+          option.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+      });
+    }
+    
+    // 获取选中的时间值
+    function getSelectedTime() {
+      const selectedMinute = parseInt(minuteOptions.querySelector('.selected').dataset.value);
+      const selectedSecond = parseInt(secondOptions.querySelector('.selected').dataset.value);
+      
+      return {
+        minutes: selectedMinute,
+        seconds: selectedSecond,
+        totalMs: (selectedMinute * 60 + selectedSecond) * 1000
+      };
+    }
+    
+    // 初始化
+    function init() {
+      initTimePicker();
+      
+      // 重置按钮事件
+      resetButton.addEventListener('click', resetTimers);
+      
+      // 模式切换按钮事件
+      modeButton.addEventListener('click', () => {
+        isCountdownMode = !isCountdownMode;
+        modeButton.textContent = isCountdownMode ? '正向计时' : '倒计时';
+        resetTimers();
+        
+        // 只在倒计时模式下显示设置时间按钮
+        setTimeButton.style.display = isCountdownMode ? 'block' : 'none';
+      });
+      
+      // 设置时间按钮事件
+      setTimeButton.addEventListener('click', () => {
+        timePicker.classList.add('active');
+      });
+      
+      // 取消按钮事件
+      cancelButton.addEventListener('click', () => {
+        timePicker.classList.remove('active');
+      });
+      
+      // 确定按钮事件
+      confirmButton.addEventListener('click', () => {
+        const selectedTime = getSelectedTime();
+        countdownTime = selectedTime.totalMs;
+        updateTimerDisplay(countdownTime);
+        timePicker.classList.remove('active');
+      });
+      
+      // 时间选项点击事件
+      document.querySelectorAll('.time-options').forEach(container => {
+        container.addEventListener('click', (e) => {
+          if (e.target.classList.contains('time-option')) {
+            const value = parseInt(e.target.dataset.value);
+            selectTimeOption(container, value);
+          }
+        });
+      });
+      
+      // 屏幕点击事件 - 开始/停止计时
+      document.addEventListener('click', (e) => {
+        // 如果点击的是控制按钮或时间选择器，不处理
+        if (e.target.closest('.controls') || e.target.closest('.time-picker')) {
+          return;
+        }
+        
+        toggleTimer();
+      });
+      
+      // 防止手机息屏
+      document.addEventListener('touchstart', () => {
+        if (window.screen && window.screen.keepAwake !== undefined) {
+          window.screen.keepAwake = true;
+        }
+      });
+      
+      // 窗口大小变化时调整字体
+      window.addEventListener('resize', adjustFontSize);
+      
+      // 初始调整字体大小
+      adjustFontSize();
+      
+      // 延迟再次调整，确保DOM完全加载
+      setTimeout(adjustFontSize, 100);
+    }
+    
+    // 调整字体大小确保所有数字可见
+    function adjustFontSize() {
+      const timerTexts = document.querySelectorAll('.timer-text');
+      
+      timerTexts.forEach(timerText => {
+        // 重置字体大小
+        timerText.style.fontSize = '';
+        
+        // 获取容器尺寸
+        const container = timerText.parentElement;
+        const containerWidth = container.clientWidth;
+        const containerHeight = container.clientHeight;
+        
+        // 使用更保守的初始字体大小
+        let fontSize = 80; // 降低初始字体大小
+        timerText.style.fontSize = fontSize + 'vmin';
+        
+        // 获取文本尺寸
+        const textWidth = timerText.scrollWidth;
+        const textHeight = timerText.scrollHeight;
+        
+        // 计算合适的字体大小，留出更多边距
+        const widthRatio = (containerWidth * 0.85) / textWidth; // 留出15%边距
+        const heightRatio = (containerHeight * 0.85) / textHeight; // 留出15%边距
+        const scale = Math.min(widthRatio, heightRatio, 1); // 确保不超过1
+        
+        // 应用新字体大小
+        const finalFontSize = fontSize * scale;
+        timerText.style.fontSize = finalFontSize + 'vmin';
+        
+        // 验证文本是否完全可见
+        setTimeout(() => {
+          const newTextWidth = timerText.scrollWidth;
+          const newTextHeight = timerText.scrollHeight;
+          
+          // 如果仍然超出，进一步缩小
+          if (newTextWidth > containerWidth * 0.9 || newTextHeight > containerHeight * 0.9) {
+            const correctionScale = Math.min(
+              (containerWidth * 0.9) / newTextWidth,
+              (containerHeight * 0.9) / newTextHeight
+            );
+            timerText.style.fontSize = (finalFontSize * correctionScale) + 'vmin';
+          }
+        }, 10);
+      });
+    }
+    
+    // 重置计时器
+    function resetTimers() {
+      isRunning = false;
+      elapsedTime = 0;
+      
+      if (isCountdownMode && countdownTime > 0) {
+        updateTimerDisplay(countdownTime);
+      } else {
+        timer1Element.textContent = '00:00.00';
+        timer2Element.textContent = '00:00.00';
+      }
+      
+      clearInterval(timerInterval);
+      timer1Element.classList.remove('blinking');
+      timer2Element.classList.remove('blinking');
+    }
+    
+    // 切换计时器状态
+    function toggleTimer() {
+      if (!isRunning) {
+        // 开始计时
+        if (isCountdownMode && countdownTime <= 0) {
+          // 倒计时模式下没有设置时间，不开始
+          return;
+        }
+        
+        startTime = Date.now() - elapsedTime;
+        isRunning = true;
+        startTimer();
+      } else {
+        // 停止计时
+        isRunning = false;
+        clearInterval(timerInterval);
+      }
+    }
+    
+    // 更新计时器显示
+    function updateTimerDisplay(time) {
+      const formatted = formatTime(time);
+      timer1Element.textContent = formatted;
+      timer2Element.textContent = formatted;
+    }
+    
+    // 计时器
+    function startTimer() {
+      timerInterval = setInterval(() => {
+        if (isCountdownMode) {
+          elapsedTime = Date.now() - startTime;
+          const remaining = countdownTime - elapsedTime;
+          
+          if (remaining <= 0) {
+            clearInterval(timerInterval);
+            timer1Element.textContent = '00:00.00';
+            timer2Element.textContent = '00:00.00';
+            isRunning = false;
+            handleTimerEnd();
+            return;
+          }
+          
+          // 5秒前提醒
+          if (remaining <= 5000) {
+            playAlertSound();
+            timer1Element.classList.add('blinking');
+            timer2Element.classList.add('blinking');
+          }
+          
+          updateTimerDisplay(remaining);
+        } else {
+          elapsedTime = Date.now() - startTime;
+          updateTimerDisplay(elapsedTime);
+        }
+      }, 10);
+    }
+    
+    // 处理计时结束
+    function handleTimerEnd() {
+      // 播放提示音
+      playAlertSound();
+      
+      // 振动（如果支持）
+      if (navigator.vibrate) {
+        navigator.vibrate([200, 100, 200, 100, 200]);
+      }
+      
+      // 3秒后停止闪烁
+      setTimeout(() => {
+        timer1Element.classList.remove('blinking');
+        timer2Element.classList.remove('blinking');
+      }, 3000);
+    }
+    
+    // 播放提示音
+    function playAlertSound() {
+      try {
+        const context = new (window.AudioContext || window.webkitAudioContext)();
+        const oscillator = context.createOscillator();
+        const gainNode = context.createGain();
+        
+        oscillator.connect(gainNode);
+        gainNode.connect(context.destination);
+        
+        oscillator.type = 'sine';
+        oscillator.frequency.value = 800;
+        gainNode.gain.value = 0.3;
+        
+        oscillator.start();
+        gainNode.gain.exponentialRampToValueAtTime(0.00001, context.currentTime + 0.5);
+        oscillator.stop(context.currentTime + 0.5);
+      } catch (e) {
+        console.log('音频播放失败:', e);
+      }
+    }
+    
+    // 格式化时间为MM:SS.MM
+    function formatTime(time) {
+      const totalSeconds = Math.floor(time / 1000);
+      const minutes = Math.floor(totalSeconds / 60);
+      const seconds = totalSeconds % 60;
+      const centiseconds = Math.floor((time % 1000) / 10);
+
+      return `${pad(minutes)}:${pad(seconds)}.${pad(centiseconds)}`;
+    }
+
+    function pad(number) {
+      return number.toString().padStart(2, '0');
+    }
+    
+    // 初始化应用
+    init();
+  </script>
+</body>
+</html>
