@@ -14,7 +14,7 @@
 
 ## 如何访问
 
-1. **本地使用**：直接打开`DS计时器终版.html`文件
+1. **本地使用**：直接打开`index.html`文件
 2. **在线访问**：通过GitHub Pages服务（需要在GitHub仓库设置中启用）
 
 ## 启用GitHub Pages
